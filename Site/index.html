@@ -1,0 +1,1544 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Actuariel - VAP de rente</title>
+  <style>
+    :root {
+      --bg: #f4f7f9;
+      --panel: #ffffff;
+      --ink: #17212f;
+      --muted: #64748b;
+      --line: #d8e0e8;
+      --navy: #17324d;
+      --teal: #0f766e;
+      --teal-soft: #e6f4f1;
+      --blue: #2563a8;
+      --amber: #a15c07;
+      --red: #b42318;
+      --shadow: 0 14px 34px rgba(23, 50, 77, 0.11);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      line-height: 1.45;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .wrap {
+      width: min(1220px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand > div:last-child {
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: var(--navy);
+      color: #ffffff;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 34px);
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      max-width: 740px;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    .btn,
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: #ffffff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .btn.primary,
+    button.primary {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #ffffff;
+    }
+
+    main {
+      padding: 22px 0 34px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+      gap: 18px;
+      margin-bottom: 18px;
+      align-items: stretch;
+    }
+
+    .hero-panel,
+    .panel {
+      min-width: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-panel {
+      padding: 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: var(--teal);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .hero-copy {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      font-size: 16px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      max-width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: var(--navy);
+      background: #f8fafc;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .executive-card {
+      padding: 18px;
+      border-left: 5px solid var(--teal);
+    }
+
+    .executive-card h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .decision {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    .risk-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      border-radius: 999px;
+      padding: 5px 11px;
+      color: #ffffff;
+      background: var(--teal);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .controls {
+      position: sticky;
+      top: 12px;
+      padding: 18px;
+    }
+
+    .controls h2,
+    .section h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+    }
+
+    .control-group {
+      padding: 14px;
+      margin-bottom: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
+    .control-title {
+      margin: 0 0 12px;
+      color: var(--navy);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .field {
+      margin: 0 0 16px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 7px;
+      font-weight: 700;
+    }
+
+    label span {
+      color: var(--teal);
+      white-space: nowrap;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--teal);
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--ink);
+      background: #ffffff;
+      font: inherit;
+    }
+
+    .hint {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .formula {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--teal-soft);
+      color: var(--navy);
+      font-size: 14px;
+    }
+
+    .formula-title {
+      margin: 0;
+      font-weight: 800;
+    }
+
+    .formula-text {
+      margin: 0;
+      color: var(--ink);
+    }
+
+    .formula-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .formula-step {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      border: 1px solid rgba(15, 118, 110, 0.25);
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: #ffffff;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      position: relative;
+      min-height: 124px;
+      padding: 14px;
+      overflow: hidden;
+    }
+
+    .metric::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: var(--teal);
+    }
+
+    .metric.blue::before {
+      background: var(--blue);
+    }
+
+    .metric.red::before {
+      background: var(--red);
+    }
+
+    .metric.amber::before {
+      background: var(--amber);
+    }
+
+    .metric p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: clamp(24px, 3vw, 34px);
+      line-height: 1.05;
+    }
+
+    .metric small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+    }
+
+    .section {
+      padding: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .section-head h2 {
+      margin-bottom: 4px;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 320px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .insight {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
+    .insight b {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--navy);
+    }
+
+    .insight p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef4f7;
+      color: var(--navy);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: #ffffff;
+      background: var(--navy);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .commentary {
+      display: grid;
+      gap: 10px;
+    }
+
+    .commentary p {
+      margin: 0;
+      padding-left: 12px;
+      border-left: 3px solid var(--teal);
+    }
+
+    .commentary b {
+      color: var(--navy);
+    }
+
+    .ml-recruiter {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding: 18px;
+    }
+
+    .ml-topline {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .ml-topline h2 {
+      margin: 0 0 4px;
+      font-size: 20px;
+    }
+
+    .ml-topline p {
+      margin: 0;
+      max-width: 780px;
+      color: var(--muted);
+    }
+
+    .ml-model-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .ml-model-btn {
+      min-height: 30px;
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: var(--navy);
+      background: #ffffff;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .ml-model-btn.active {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #ffffff;
+    }
+
+    .ml-dashboard {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .ml-focus,
+    .ml-recruiter-note {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 14px;
+    }
+
+    .ml-focus h3 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 19px;
+    }
+
+    .ml-verdict {
+      display: inline-flex;
+      width: fit-content;
+      margin: 10px 0;
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .ml-focus p,
+    .ml-recruiter-note p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .ml-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .ml-kpi {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px;
+      background: #ffffff;
+    }
+
+    .ml-kpi span {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .ml-kpi strong {
+      display: block;
+      color: var(--navy);
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .ml-recruiter-note {
+      display: grid;
+      gap: 10px;
+    }
+
+    .ml-recruiter-note b {
+      color: var(--navy);
+    }
+
+    .ml-bars {
+      display: grid;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .ml-bar {
+      display: grid;
+      grid-template-columns: 120px 1fr 58px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .ml-track {
+      height: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e8eef3;
+    }
+
+    .ml-fill {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--teal);
+    }
+
+    .footer-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .topbar,
+      .hero,
+      .layout,
+      .ml-dashboard,
+      .grid-two {
+        display: block;
+      }
+
+      .links {
+        justify-content: flex-start;
+        margin-top: 14px;
+      }
+
+      .executive-card,
+      .controls,
+      .ml-recruiter-note {
+        margin-top: 18px;
+      }
+
+      .ml-topline {
+        display: block;
+      }
+
+      .ml-model-nav {
+        margin-top: 12px;
+      }
+
+      .controls {
+        position: static;
+      }
+
+      .metrics,
+      .ml-kpis,
+      .insight-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-two > * {
+        margin-bottom: 18px;
+      }
+    }
+
+    @media (max-width: 590px) {
+      body {
+        width: 100vw;
+      }
+
+      .wrap {
+        width: calc(100vw - 20px) !important;
+        max-width: calc(100vw - 20px) !important;
+        margin-inline: 10px;
+      }
+
+      .brand {
+        align-items: flex-start;
+      }
+
+      .brand,
+      .brand > div,
+      h1,
+      h2,
+      .subtitle,
+      .hero-copy,
+      .decision,
+      .chip,
+      .btn,
+      label,
+      td,
+      th {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .links {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+      }
+
+      .links .btn {
+        min-width: 0;
+        width: 100%;
+        padding-inline: 10px;
+        white-space: normal;
+        text-align: center;
+        overflow: hidden;
+      }
+
+      .links .btn:first-child {
+        grid-column: 1 / -1;
+      }
+
+      .hero-panel,
+      .executive-card,
+      .controls,
+      .section {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+      }
+
+      .hero,
+      .layout,
+      .content,
+      .metrics,
+      .grid-two,
+      .insight-grid {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+      }
+
+      .metrics,
+      .ml-kpis,
+      .insight-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .ml-bar {
+        grid-template-columns: 1fr;
+        gap: 5px;
+      }
+
+      canvas {
+        height: 270px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">AV</div>
+        <div>
+          <h1>Dashboard actuariel de rente</h1>
+          <p class="subtitle">Simulateur VAP, risque de longévité et benchmark actuariel + machine learning pour le portefeuille 1955.</p>
+        </div>
+      </div>
+      <nav class="links" aria-label="Liens rapport">
+        <a class="btn primary" href="../Rapport/Rapport_Projet_Actuariat_Vie_Sujet3_Groupe-2-DS.html">Rapport HTML</a>
+        <a class="btn" href="../machine.html">Rapport ML</a>
+        <a class="btn" href="../Rapport/Rapport_Projet_Actuariat_Vie_Sujet3_Groupe-2-DS.pdf">Rapport PDF</a>
+        <a class="btn" href="../Rapport/Rapport_Projet_Actuariat_Vie_Sujet3_Groupe-2-DS.Rmd">Source Rmd</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero" aria-label="Résumé actuariel">
+      <div class="hero-panel">
+        <div class="eyebrow">Actuariat vie · tarification · longévité</div>
+        <h2>Tester rapidement l'effet du taux, du modèle de mortalité et de la composition du portefeuille.</h2>
+        <p class="hero-copy">Le dashboard transforme les approfondissements du rapport en outil de décision : il montre la VAP, l'écart avec la série Total HMD, les transferts de risque, puis compare les modèles actuariels et ML avec une lecture pensée pour un recruteur actuariel.</p>
+        <div class="chips" aria-label="Hypothèses clés">
+          <span class="chip">Cohorte 1955</span>
+          <span class="chip">Contrat 2015-2045</span>
+          <span class="chip">Age 60 à 90 ans</span>
+          <span class="chip">HMD England & Wales</span>
+          <span class="chip">Portefeuille de référence 60/40</span>
+        </div>
+      </div>
+
+      <aside class="panel executive-card">
+        <h2>Résumé décisionnel</h2>
+        <p class="decision" id="decisionText">--</p>
+        <span class="risk-pill" id="riskPill">--</span>
+      </aside>
+    </section>
+
+    <section class="panel ml-recruiter" aria-labelledby="mlRecruiterTitle">
+      <div class="ml-topline">
+        <div>
+          <div class="eyebrow">Machine learning · risque de modèle · lecture recruteur</div>
+          <h2 id="mlRecruiterTitle">Cockpit de comparaison des modèles de VAP</h2>
+          <p>Objectif : montrer que le modèle n'est pas seulement performant en historique, mais défendable pour tarifier et provisionner une rente viagère.</p>
+        </div>
+        <div class="ml-model-nav" aria-label="Choisir un modèle ML">
+          <button class="ml-model-btn active" type="button" data-ml-model="lc">LC</button>
+          <button class="ml-model-btn" type="button" data-ml-model="ridge">Ridge</button>
+          <button class="ml-model-btn" type="button" data-ml-model="lasso">Lasso</button>
+          <button class="ml-model-btn" type="button" data-ml-model="rf">RF</button>
+          <button class="ml-model-btn" type="button" data-ml-model="gbm">GBM</button>
+          <button class="ml-model-btn" type="button" data-ml-model="nn">NN</button>
+        </div>
+      </div>
+
+      <div class="ml-dashboard">
+        <div class="ml-focus">
+          <h3 id="mlModelTitle">Lee-Carter</h3>
+          <span class="ml-verdict" id="mlVerdict">Référence actuarielle</span>
+          <p id="mlModelSummary">--</p>
+        </div>
+
+        <div class="ml-recruiter-note">
+          <div class="ml-kpis" aria-label="Indicateurs ML clés">
+            <div class="ml-kpi">
+              <span>VAP 60/40</span>
+              <strong id="mlVap">--</strong>
+            </div>
+            <div class="ml-kpi">
+              <span>Écart LC</span>
+              <strong id="mlGap">--</strong>
+            </div>
+            <div class="ml-kpi">
+              <span>RMSE femmes</span>
+              <strong id="mlRmseFemale">--</strong>
+            </div>
+            <div class="ml-kpi">
+              <span>Extrapolation</span>
+              <strong id="mlExtrapolation">--</strong>
+            </div>
+          </div>
+
+          <p><b>Usage recommandé.</b> <span id="mlUse">--</span></p>
+          <p><b>Message entretien.</b> <span id="mlInterview">--</span></p>
+          <div class="ml-bars" id="mlBars" aria-label="Comparaison des VAP unisexes 60/40"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <aside class="panel controls" aria-label="Paramètres de simulation">
+        <h2>Scénario</h2>
+
+        <div class="control-group">
+          <p class="control-title">Modèle de mortalité</p>
+          <div class="field">
+            <label for="model">Modèle <span id="modelLabel">Lee-Carter</span></label>
+            <select id="model">
+              <option value="lc">Lee-Carter</option>
+              <option value="apc">APC</option>
+              <option value="cbd">CBD</option>
+            </select>
+            <p class="hint" id="modelUse">--</p>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <p class="control-title">Hypothèses financières</p>
+          <div class="field">
+            <label for="rate">Taux d'actualisation <span id="rateLabel">2.0%</span></label>
+            <input id="rate" type="range" min="0" max="6" step="0.1" value="2">
+            <p class="hint" id="rateImpact">--</p>
+          </div>
+
+          <div class="field">
+            <label for="amount">Montant annuel de rente <span id="amountLabel">1 000</span></label>
+            <input id="amount" type="number" min="1" step="100" value="1000">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <p class="control-title">Composition du portefeuille</p>
+          <div class="field">
+            <label for="women">Proportion de femmes <span id="womenLabel">60%</span></label>
+            <input id="women" type="range" min="0" max="100" step="1" value="60">
+            <p class="hint">Plus la proportion de femmes augmente, plus la durée attendue de paiement augmente.</p>
+          </div>
+        </div>
+
+        <div class="formula" aria-label="Formule VAP expliquée simplement">
+          <p class="formula-title">Principe de calcul de la VAP</p>
+          <p class="formula-text">On additionne les rentes futures attendues, puis on les ramène à leur valeur d'aujourd'hui.</p>
+          <div class="formula-steps" aria-hidden="true">
+            <span class="formula-step">Rente annuelle</span>
+            <span class="formula-step">Probabilité de survie</span>
+            <span class="formula-step">Actualisation</span>
+          </div>
+        </div>
+        <p class="hint">Les valeurs du simulateur sont calibrées sur les VAP Lee-Carter du rapport à 2%.</p>
+        <button class="primary" id="reset" type="button">Réinitialiser le scénario</button>
+      </aside>
+
+      <section class="content">
+        <div class="metrics" aria-label="Indicateurs clés">
+          <div class="panel metric">
+            <p>VAP portefeuille</p>
+            <strong id="portfolioVap">--</strong>
+            <small id="portfolioDetail">--</small>
+          </div>
+          <div class="panel metric red">
+            <p>VAP femmes</p>
+            <strong id="femaleVap">--</strong>
+            <small>Coût actuariel féminin</small>
+          </div>
+          <div class="panel metric blue">
+            <p>VAP hommes</p>
+            <strong id="maleVap">--</strong>
+            <small>Coût actuariel masculin</small>
+          </div>
+          <div class="panel metric amber">
+            <p>Écart vs Total HMD</p>
+            <strong id="gapVap">--</strong>
+            <small id="gapDetail">--</small>
+          </div>
+        </div>
+
+        <section class="panel section">
+          <div class="section-head">
+            <div>
+              <h2>Lecture actuarielle immédiate</h2>
+              <p>Ce bloc donne le commentaire prêt à présenter après chaque changement de scénario.</p>
+            </div>
+          </div>
+          <div class="commentary" id="commentary"></div>
+        </section>
+
+        <div class="grid-two">
+          <section class="panel section">
+            <div class="section-head">
+              <div>
+                <h2>Sensibilité au taux</h2>
+                <p>Effet du taux d'actualisation sur la VAP.</p>
+              </div>
+            </div>
+            <canvas id="sensitivityChart" width="720" height="360"></canvas>
+          </section>
+
+          <section class="panel section">
+            <div class="section-head">
+              <div>
+                <h2>Probabilités projetées qx</h2>
+                <p>Mortalité annuelle projetée entre 60 et 90 ans.</p>
+              </div>
+            </div>
+            <canvas id="mortalityChart" width="720" height="360"></canvas>
+          </section>
+        </div>
+
+        <section class="panel section">
+          <div class="section-head">
+            <div>
+              <h2>Comment choisir le modèle</h2>
+              <p>Message clair pour un jury, un recruteur ou un décideur métier.</p>
+            </div>
+          </div>
+          <div class="insight-grid">
+            <div class="insight">
+              <b>Lee-Carter</b>
+              <p>Référence simple et robuste pour expliquer le mécanisme âge-période.</p>
+            </div>
+            <div class="insight">
+              <b>APC</b>
+              <p>À choisir si l'effet générationnel est important pour la cohorte 1955.</p>
+            </div>
+            <div class="insight">
+              <b>CBD</b>
+              <p>Adapté aux âges élevés et aux portefeuilles de rentes exposés au risque de longévité.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel section">
+          <div class="section-head">
+            <div>
+              <h2>Benchmark modèles</h2>
+              <p>La section 8 du rapport donne le benchmark statistique complet.</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Modèle</th>
+                <th>Quand le choisir</th>
+                <th>Impact attendu sur la rente</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge">LC</span> Lee-Carter</td>
+                <td>Référence pédagogique, lisible, adaptée à une première projection.</td>
+                <td>Base calibrée sur les VAP du rapport à 2%.</td>
+              </tr>
+              <tr>
+                <td><span class="badge">APC</span> Age-Period-Cohort</td>
+                <td>À privilégier si l'effet génération 1955 influence nettement la mortalité.</td>
+                <td>Peut modifier la VAP si la cohorte projetée est plus ou moins favorable.</td>
+              </tr>
+              <tr>
+                <td><span class="badge">CBD</span> Cairns-Blake-Dowd</td>
+                <td>Adapté aux âges élevés et aux portefeuilles de rentes.</td>
+                <td>Accentue l'analyse de longévité entre 60 et 90 ans.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="footer-note">Démonstration interactive : les valeurs officielles et le meilleur modèle statistique restent ceux du rapport généré avec R.</p>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const years = Array.from({ length: 31 }, (_, index) => 2015 + index);
+    const ages = years.map((year) => year - 1955);
+
+    const targetLc = {
+      female: 19.49538,
+      male: 18.16818,
+      total: 18.81099
+    };
+
+    const mlModelData = {
+      lc: {
+        short: "LC",
+        label: "Lee-Carter",
+        verdict: "Référence actuarielle",
+        vap: 18.96450,
+        gap: 0,
+        rmseFemale: 0.04315,
+        rmseMale: 0.05236,
+        extrapolation: "Oui (ARIMA)",
+        uncertainty: "IC disponibles",
+        use: "Projection long terme, tarification et provisionnement réglementaire.",
+        summary: "Modèle âge-période lisible, avec projection de tendance temporelle et intervalles de confiance. Il reste le point d'ancrage pour défendre la VAP devant un décideur.",
+        interview: "Je garde Lee-Carter comme benchmark métier, puis j'utilise le ML pour challenger la sensibilité et le risque de modèle."
+      },
+      ridge: {
+        short: "Ridge",
+        label: "Ridge",
+        verdict: "ML défendable à court terme",
+        vap: 19.07335,
+        gap: 0.574,
+        rmseFemale: 0.13972,
+        rmseMale: 0.13809,
+        extrapolation: "Linéaire",
+        uncertainty: "Bootstrap possible",
+        use: "Calibration de table d'expérience, ajustement court terme et analyse SMR.",
+        summary: "Régression pénalisée L2 : elle accepte l'extrapolation linéaire et limite l'instabilité des coefficients. Sa VAP est proche de Lee-Carter avec un léger surcoût.",
+        interview: "Ridge est utile quand je veux un modèle simple, régularisé et explicable, sans vendre un arbre comme modèle de projection long terme."
+      },
+      lasso: {
+        short: "Lasso",
+        label: "Lasso",
+        verdict: "ML le plus proche de LC",
+        vap: 18.96802,
+        gap: 0.019,
+        rmseFemale: 0.09085,
+        rmseMale: 0.10009,
+        extrapolation: "Linéaire",
+        uncertainty: "Bootstrap possible",
+        use: "Sélection de variables pour tables d'expérience sparsifiées.",
+        summary: "Régression pénalisée L1 : elle sélectionne les variables les plus utiles et donne une VAP presque identique à Lee-Carter sur le portefeuille 60/40.",
+        interview: "Lasso montre que je sais produire un modèle parcimonieux et contrôlable, très utile pour expliquer une table d'expérience."
+      },
+      rf: {
+        short: "RF",
+        label: "Random Forest",
+        verdict: "Excellent historique, risqué en projection",
+        vap: 18.59787,
+        gap: -1.933,
+        rmseFemale: 0.02035,
+        rmseMale: 0.02520,
+        extrapolation: "Non",
+        uncertainty: "Non",
+        use: "Comparaison de portefeuilles et détection d'anomalies, pas projection long terme.",
+        summary: "La forêt aléatoire ajuste très bien l'historique, mais extrapole mal hors de la plage observée. Le faible RMSE ne suffit donc pas pour justifier une VAP de rente.",
+        interview: "Je l'utilise comme outil de diagnostic, pas comme moteur de provisionnement : c'est exactement le piège méthodologique à éviter."
+      },
+      gbm: {
+        short: "GBM",
+        label: "Gradient Boosting",
+        verdict: "Benchmark intra-historique",
+        vap: 18.61600,
+        gap: -1.838,
+        rmseFemale: 0.03292,
+        rmseMale: 0.04210,
+        extrapolation: "Non",
+        uncertainty: "Non",
+        use: "Benchmarking de tarification intra-historique.",
+        summary: "Le boosting capture finement les non-linéarités historiques, mais il reste un ensemble d'arbres : sa projection temporelle est fragile pour un horizon 2045.",
+        interview: "GBM est pertinent pour comparer, segmenter et détecter des patterns, mais je ne l'emploie pas seul pour projeter la mortalité future."
+      },
+      nn: {
+        short: "NN",
+        label: "Réseau de neurones",
+        verdict: "Exploratoire",
+        vap: 19.55648,
+        gap: 3.122,
+        rmseFemale: 0.03321,
+        rmseMale: 0.04097,
+        extrapolation: "Partielle",
+        uncertainty: "Non",
+        use: "Données massives et architectures avancées, LSTM recommandé pour séries.",
+        summary: "Le réseau simple apprend une surface non linéaire, mais son extrapolation dépend fortement de l'architecture et de la régularisation. L'écart de VAP est le plus élevé.",
+        interview: "Je le présente comme piste avancée, avec prudence : pour la mortalité, une architecture temporelle dédiée serait plus crédible."
+      }
+    };
+
+    const modelParams = {
+      lc: {
+        label: "Lee-Carter",
+        improvement: 0.012,
+        cohortShift: 0,
+        highAgeTilt: 0,
+        note: "Lee-Carter donne une référence stable et facile à communiquer.",
+        use: "À utiliser comme modèle de référence clair et défendable."
+      },
+      apc: {
+        label: "APC",
+        improvement: 0.011,
+        cohortShift: -0.025,
+        highAgeTilt: 0.015,
+        note: "APC ajoute un effet cohorte : il est utile si la génération 1955 se distingue du reste de la population.",
+        use: "À privilégier quand l'effet générationnel doit être expliqué."
+      },
+      cbd: {
+        label: "CBD",
+        improvement: 0.009,
+        cohortShift: 0.005,
+        highAgeTilt: -0.010,
+        note: "CBD se concentre sur les âges adultes et élevés, donc il est naturel pour un portefeuille de rentes.",
+        use: "À choisir pour une lecture centrée longévité et âges élevés."
+      }
+    };
+
+    const colors = {
+      female: "#b42318",
+      male: "#2563a8",
+      portfolio: "#0f766e",
+      total: "#17324d",
+      grid: "#e4e7ef",
+      text: "#17212f"
+    };
+
+    const controls = {
+      model: document.getElementById("model"),
+      rate: document.getElementById("rate"),
+      amount: document.getElementById("amount"),
+      women: document.getElementById("women"),
+      reset: document.getElementById("reset")
+    };
+
+    const mlButtons = Array.from(document.querySelectorAll("[data-ml-model]"));
+
+    const output = {
+      modelLabel: document.getElementById("modelLabel"),
+      modelUse: document.getElementById("modelUse"),
+      rateLabel: document.getElementById("rateLabel"),
+      rateImpact: document.getElementById("rateImpact"),
+      amountLabel: document.getElementById("amountLabel"),
+      womenLabel: document.getElementById("womenLabel"),
+      portfolioVap: document.getElementById("portfolioVap"),
+      femaleVap: document.getElementById("femaleVap"),
+      maleVap: document.getElementById("maleVap"),
+      gapVap: document.getElementById("gapVap"),
+      portfolioDetail: document.getElementById("portfolioDetail"),
+      gapDetail: document.getElementById("gapDetail"),
+      commentary: document.getElementById("commentary"),
+      decisionText: document.getElementById("decisionText"),
+      riskPill: document.getElementById("riskPill"),
+      mlModelTitle: document.getElementById("mlModelTitle"),
+      mlVerdict: document.getElementById("mlVerdict"),
+      mlModelSummary: document.getElementById("mlModelSummary"),
+      mlVap: document.getElementById("mlVap"),
+      mlGap: document.getElementById("mlGap"),
+      mlRmseFemale: document.getElementById("mlRmseFemale"),
+      mlExtrapolation: document.getElementById("mlExtrapolation"),
+      mlUse: document.getElementById("mlUse"),
+      mlInterview: document.getElementById("mlInterview"),
+      mlBars: document.getElementById("mlBars")
+    };
+
+    const sensitivityCanvas = document.getElementById("sensitivityChart");
+    const mortalityCanvas = document.getElementById("mortalityChart");
+    let selectedMlModel = "lc";
+
+    function euro(value) {
+      return new Intl.NumberFormat("fr-FR", {
+        maximumFractionDigits: 0
+      }).format(value);
+    }
+
+    function signedEuro(value) {
+      return `${value >= 0 ? "+" : ""}${euro(value)}`;
+    }
+
+    function signedPercent(value) {
+      return `${value >= 0 ? "+" : ""}${number(value, 3)}%`;
+    }
+
+    function number(value, digits = 2) {
+      return new Intl.NumberFormat("fr-FR", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      }).format(value);
+    }
+
+    function updateMlCockpit() {
+      const model = mlModelData[selectedMlModel];
+      const vapValues = Object.values(mlModelData).map((item) => item.vap);
+      const minVap = Math.min(...vapValues);
+      const maxVap = Math.max(...vapValues);
+
+      output.mlModelTitle.textContent = model.label;
+      output.mlVerdict.textContent = model.verdict;
+      output.mlModelSummary.textContent = model.summary;
+      output.mlVap.textContent = `${number(model.vap, 2)} x R`;
+      output.mlGap.textContent = signedPercent(model.gap);
+      output.mlRmseFemale.textContent = number(model.rmseFemale, 5);
+      output.mlExtrapolation.textContent = model.extrapolation;
+      output.mlUse.textContent = model.use;
+      output.mlInterview.textContent = model.interview;
+
+      output.mlBars.innerHTML = Object.entries(mlModelData).map(([key, item]) => {
+        const width = 28 + ((item.vap - minVap) / (maxVap - minVap || 1)) * 72;
+        const color = key === selectedMlModel ? "var(--teal)" : "#9fb1c3";
+        return `
+          <div class="ml-bar">
+            <b>${item.short}</b>
+            <span class="ml-track"><span class="ml-fill" style="width: ${width}%; background: ${color};"></span></span>
+            <span>${number(item.vap, 2)}</span>
+          </div>
+        `;
+      }).join("");
+
+      mlButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.mlModel === selectedMlModel);
+      });
+    }
+
+    function baseMortality(sex, age, year, modelKey, scale) {
+      const params = modelParams[modelKey];
+      const q60 = sex === "female" ? 0.005307 : 0.007961;
+      const ageSlope = sex === "female" ? 0.088 : 0.084;
+      const agePart = Math.exp(ageSlope * (age - 60));
+      const improvement = Math.exp(-params.improvement * (year - 2015));
+      const cohort = Math.exp(params.cohortShift);
+      const oldAge = Math.exp(params.highAgeTilt * Math.max(0, age - 75));
+      const qx = q60 * agePart * improvement * cohort * oldAge * scale;
+      return Math.min(0.95, Math.max(0.0001, qx));
+    }
+
+    function annuityFromQx(qx, rate, amount) {
+      let survival = 1;
+      let value = 0;
+      for (let k = 0; k < qx.length; k += 1) {
+        value += amount * survival / Math.pow(1 + rate, k);
+        survival *= 1 - qx[k];
+      }
+      return value;
+    }
+
+    function seriesQx(sex, modelKey, scale) {
+      return ages.map((age, index) => baseMortality(sex, age, years[index], modelKey, scale));
+    }
+
+    function calibrateScale(sex) {
+      let low = 0.2;
+      let high = 4;
+      const target = targetLc[sex];
+      for (let i = 0; i < 60; i += 1) {
+        const mid = (low + high) / 2;
+        const qx = seriesQx(sex, "lc", mid);
+        const value = annuityFromQx(qx, 0.02, 1);
+        if (value > target) {
+          low = mid;
+        } else {
+          high = mid;
+        }
+      }
+      return (low + high) / 2;
+    }
+
+    const scales = {
+      female: calibrateScale("female"),
+      male: calibrateScale("male")
+    };
+
+    const equivalentWomenTotal = (targetLc.total - targetLc.male) / (targetLc.female - targetLc.male);
+
+    function valuesFor(modelKey, rate, amount, womenShare) {
+      const qxFemale = seriesQx("female", modelKey, scales.female);
+      const qxMale = seriesQx("male", modelKey, scales.male);
+      const female = annuityFromQx(qxFemale, rate, amount);
+      const male = annuityFromQx(qxMale, rate, amount);
+      const portfolio = womenShare * female + (1 - womenShare) * male;
+      const total = equivalentWomenTotal * female + (1 - equivalentWomenTotal) * male;
+      return { female, male, portfolio, total, qxFemale, qxMale };
+    }
+
+    function drawLineChart(canvas, series, options) {
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+      const pad = { left: 58, right: 18, top: 28, bottom: 42 };
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      const xs = series.flatMap((item) => item.points.map((point) => point.x));
+      const ys = series.flatMap((item) => item.points.map((point) => point.y));
+      const xMin = Math.min(...xs);
+      const xMax = Math.max(...xs);
+      let yMin = Math.min(...ys);
+      let yMax = Math.max(...ys);
+      const yPad = (yMax - yMin) * 0.08 || 1;
+      yMin -= yPad;
+      yMax += yPad;
+
+      const xScale = (x) => pad.left + ((x - xMin) / (xMax - xMin || 1)) * (width - pad.left - pad.right);
+      const yScale = (y) => height - pad.bottom - ((y - yMin) / (yMax - yMin || 1)) * (height - pad.top - pad.bottom);
+
+      ctx.strokeStyle = colors.grid;
+      ctx.lineWidth = 1;
+      ctx.fillStyle = colors.text;
+      ctx.font = "12px Arial";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+
+      for (let i = 0; i <= 4; i += 1) {
+        const yValue = yMin + (i / 4) * (yMax - yMin);
+        const y = yScale(yValue);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+        ctx.fillText(options.yFormatter(yValue), pad.left - 8, y);
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (let i = 0; i <= 5; i += 1) {
+        const xValue = xMin + (i / 5) * (xMax - xMin);
+        const x = xScale(xValue);
+        ctx.beginPath();
+        ctx.moveTo(x, height - pad.bottom);
+        ctx.lineTo(x, height - pad.bottom + 5);
+        ctx.stroke();
+        ctx.fillText(options.xFormatter(xValue), x, height - pad.bottom + 10);
+      }
+
+      ctx.strokeStyle = "#aeb7c7";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, height - pad.bottom);
+      ctx.lineTo(width - pad.right, height - pad.bottom);
+      ctx.stroke();
+
+      series.forEach((item) => {
+        ctx.strokeStyle = item.color;
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        item.points.forEach((point, index) => {
+          const x = xScale(point.x);
+          const y = yScale(point.y);
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+
+      let legendX = pad.left;
+      const legendY = 10;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      series.forEach((item) => {
+        ctx.fillStyle = item.color;
+        ctx.fillRect(legendX, legendY, 12, 12);
+        ctx.fillStyle = colors.text;
+        ctx.fillText(item.name, legendX + 17, legendY + 6);
+        legendX += ctx.measureText(item.name).width + 44;
+      });
+    }
+
+    function update() {
+      const modelKey = controls.model.value;
+      const rate = Number(controls.rate.value) / 100;
+      const amount = Math.max(1, Number(controls.amount.value) || 1);
+      const womenShare = Number(controls.women.value) / 100;
+      const values = valuesFor(modelKey, rate, amount, womenShare);
+      const baseline = valuesFor(modelKey, 0.02, amount, womenShare);
+      const gap = values.portfolio - values.total;
+      const transferFemale = values.portfolio - values.female;
+      const transferMale = values.portfolio - values.male;
+      const rateEffect = values.portfolio - baseline.portfolio;
+
+      output.modelLabel.textContent = modelParams[modelKey].label;
+      output.modelUse.textContent = modelParams[modelKey].use;
+      output.rateLabel.textContent = `${number(rate * 100, 1)}%`;
+      output.rateImpact.textContent = `Impact vs 2% : ${signedEuro(rateEffect)}`;
+      output.amountLabel.textContent = euro(amount);
+      output.womenLabel.textContent = `${Math.round(womenShare * 100)}%`;
+      output.portfolioVap.textContent = euro(values.portfolio);
+      output.femaleVap.textContent = euro(values.female);
+      output.maleVap.textContent = euro(values.male);
+      output.gapVap.textContent = signedEuro(gap);
+      output.portfolioDetail.textContent = `${Math.round(womenShare * 100)}% femmes / ${Math.round((1 - womenShare) * 100)}% hommes`;
+      output.gapDetail.textContent = `Total HMD implicite : ${euro(values.total)}`;
+
+      const riskLevel = Math.abs(gap) < amount * 0.05 ? "Écart faible" : gap > 0 ? "Surcoût longévité" : "Coût inférieur au Total";
+      output.riskPill.textContent = riskLevel;
+      output.decisionText.textContent = `${modelParams[modelKey].label} donne une VAP portefeuille de ${euro(values.portfolio)} pour une rente annuelle de ${euro(amount)}. L'écart avec Total HMD est ${signedEuro(gap)}.`;
+
+      const sensitivityRates = Array.from({ length: 31 }, (_, index) => index * 0.002);
+      const sensitivity = sensitivityRates.map((r) => {
+        const v = valuesFor(modelKey, r, amount, womenShare);
+        return { x: r * 100, y: v.portfolio };
+      });
+      const sensitivityTotal = sensitivityRates.map((r) => {
+        const v = valuesFor(modelKey, r, amount, equivalentWomenTotal);
+        return { x: r * 100, y: v.portfolio };
+      });
+
+      drawLineChart(sensitivityCanvas, [
+        { name: "Portefeuille", color: colors.portfolio, points: sensitivity },
+        { name: "Total HMD", color: colors.total, points: sensitivityTotal }
+      ], {
+        xFormatter: (x) => `${number(x, 1)}%`,
+        yFormatter: (y) => euro(y)
+      });
+
+      drawLineChart(mortalityCanvas, [
+        {
+          name: "Femmes",
+          color: colors.female,
+          points: ages.map((age, index) => ({ x: age, y: values.qxFemale[index] * 100 }))
+        },
+        {
+          name: "Hommes",
+          color: colors.male,
+          points: ages.map((age, index) => ({ x: age, y: values.qxMale[index] * 100 }))
+        }
+      ], {
+        xFormatter: (x) => `${Math.round(x)} ans`,
+        yFormatter: (y) => `${number(y, 1)}%`
+      });
+
+      const transferDirection = gap >= 0
+        ? "le portefeuille coûte plus cher que la série Total HMD implicite"
+        : "le portefeuille coûte moins cher que la série Total HMD implicite";
+
+      output.commentary.innerHTML = `
+        <p><b>Modèle.</b> ${modelParams[modelKey].note}</p>
+        <p><b>Taux.</b> À montant et mortalité constants, augmenter le taux d'actualisation réduit la VAP. Ici, l'impact par rapport au taux de référence 2% est ${signedEuro(rateEffect)}.</p>
+        <p><b>Composition.</b> Avec ${Math.round(womenShare * 100)}% de femmes, ${transferDirection}. L'écart vient de la longévité féminine plus élevée.</p>
+        <p><b>Transfert unisexe.</b> À cette prime portefeuille, l'écart prime moins coût vaut ${signedEuro(transferFemale)} pour les femmes et ${signedEuro(transferMale)} pour les hommes.</p>
+      `;
+    }
+
+    controls.model.addEventListener("change", update);
+    controls.rate.addEventListener("input", update);
+    controls.amount.addEventListener("input", update);
+    controls.women.addEventListener("input", update);
+    controls.reset.addEventListener("click", () => {
+      controls.model.value = "lc";
+      controls.rate.value = "2";
+      controls.amount.value = "1000";
+      controls.women.value = "60";
+      update();
+    });
+
+    mlButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedMlModel = button.dataset.mlModel;
+        updateMlCockpit();
+      });
+    });
+
+    updateMlCockpit();
+    update();
+  </script>
+</body>
+</html>

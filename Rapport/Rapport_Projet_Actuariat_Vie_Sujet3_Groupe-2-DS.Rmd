@@ -1,0 +1,998 @@
+---
+title: "Projet Actuariat Vie - Sujet 3"
+author: "Groupe 2 DS -- Amine Manai, Maha Aloui, Nassir Bouzaiene, Yasmine Attyaoui"
+date: "`r Sys.Date()`"
+bibliography: references.bib
+link-citations: true
+lang: fr-FR
+nocite: |
+  @cours_actvie, @demography, @ia_generative, @renshaw_haberman_2006, @cairns_blake_dowd_2006
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.path = "graphes/rapport_graphe_",
+  dpi = 150,
+  fig.width = 8,
+  fig.height = 5
+)
+```
+
+# Déclaration d'utilisation de l'IA générative
+
+Une IA générative a été utilisée pour aider à préparer la structure du fichier R Markdown, le squelette du code R et une première formulation de certaines interprétations [@ia_generative]. Les calculs, les résultats, les graphiques, les choix de paramètres et la validation finale ont été vérifiés par les membres du groupe.
+
+# Introduction
+
+On étudie une rente viagère temporaire souscrite en 2015 par des assurés anglais nés en 1955.
+
+Au début du contrat, les assurés ont :
+
+\[
+2015 - 1955 = 60 \text{ ans}.
+\]
+
+Le portefeuille est composé de :
+
+- 60% de femmes nées en 1955 ;
+- 40% d'hommes nés en 1955.
+
+Le contrat est valable entre 2015 et 2045.
+
+On utilise les données de la Human Mortality Database [@hmd] et le package `StMoMo` [@stmomo], comme demandé dans le sujet.
+
+## Répartition des tâches
+
+La répartition du travail au sein du groupe 2 DS suit l'ordre des huit questions du sujet, avec deux questions principales par membre :
+
+- Amine Manai : questions 1 et 2, récupération des données HMD puis estimation des taux de mortalité par maximum de vraisemblance et intervalles de confiance.
+- Maha Aloui : questions 3 et 4, extraction des cohortes avec `extractCohort` puis projection centrale avec le modèle de Lee-Carter et `forecast`.
+- Nassir Bouzaiene : questions 5 et 6, analyse des log-taux historiques depuis 2005 puis calcul de la valeur actuelle probable selon le genre.
+- Yasmine Attyaoui : questions 7 et 8, tarification unisexe avec la série `total` puis méthode unisexe adaptée au portefeuille 60/40 et interprétation du transfert de risque.
+
+Chaque membre a aussi participé à la vérification finale du rapport, des graphiques et de la présentation.
+
+# Packages
+
+```{r, eval=FALSE}
+install.packages(c("demography", "StMoMo"))
+```
+
+```{r, message=FALSE, warning=FALSE}
+set.seed(42)
+
+library(demography)
+library(StMoMo)
+```
+
+# Paramètres
+
+```{r}
+cohorte <- 1955
+debut <- 2015
+fin <- 2045
+
+age_debut <- debut - cohorte
+ages_contrat <- age_debut:(fin - cohorte)
+annees_contrat <- cohorte + ages_contrat
+
+i <- 0.02
+v <- 1 / (1 + i)
+montant_rente <- 1
+```
+
+On prend un montant de rente annuel égal à 1. Si le montant réel est différent, il suffit de multiplier les valeurs actuelles probables par ce montant.
+
+# 1. Télécharger les données HMD
+
+Le pays concerné est l'Angleterre et le Pays de Galles. Dans HMD, le code est `GBRTENW` [@hmd].
+
+Pour éviter d'écrire les identifiants HMD dans le fichier source, ils sont lus depuis les variables d'environnement `HMD_USERNAME` et `HMD_PASSWORD`.
+
+```{r, include=FALSE}
+username <- Sys.getenv("HMD_USERNAME")
+password <- Sys.getenv("HMD_PASSWORD")
+
+if (username == "" || password == "") {
+  stop("Définir HMD_USERNAME et HMD_PASSWORD avant de générer le rapport.")
+}
+
+uk <- hmd.mx(
+  country = "GBRTENW",
+  username = username,
+  password = password,
+  label = "England and Wales"
+)
+```
+
+```{r}
+print(uk)
+summary(uk)
+names(uk$rate)
+```
+
+**Commentaire :**
+
+Une base de mortalité contient les âges, les années, les expositions et les taux observés. Ici, l'objet HMD donne directement les séries `female`, `male` et `total`. Cela permet de traiter séparément la mortalité des femmes, celle des hommes et la population globale, comme demandé dans le sujet.
+
+On transforme ensuite l'objet `demogdata` en objet utilisable avec `StMoMo`.
+
+```{r}
+data_femme <- StMoMoData(uk, series = "female")
+data_homme <- StMoMoData(uk, series = "male")
+data_total <- StMoMoData(uk, series = "total")
+
+summary(data_femme)
+summary(data_homme)
+summary(data_total)
+```
+
+# 2. Estimation des taux par maximum de vraisemblance
+
+Pour un âge \(x\) et une année \(t\), on note :
+
+- \(D_{x,t}\) : le nombre de décès ;
+- \(E_{x,t}\) : l'exposition au risque ;
+- \(\mu_{x,t}\) : le taux de mortalité.
+
+Sous l'hypothèse :
+
+\[
+D_{x,t} \sim \mathcal{P}(E_{x,t}\mu_{x,t}),
+\]
+
+l'estimateur du maximum de vraisemblance est :
+
+\[
+\widehat{\mu}_{x,t} = \frac{D_{x,t}}{E_{x,t}}.
+\]
+
+```{r}
+estime_mortalite <- function(data, cohorte, ages) {
+  res <- data.frame()
+  
+  for (age in ages) {
+    annee <- cohorte + age
+    
+    if (age %in% data$ages && annee %in% data$years) {
+      D <- data$Dxt[as.character(age), as.character(annee)]
+      E <- data$Ext[as.character(age), as.character(annee)]
+      mx <- D / E
+      
+      bas <- exp(log(mx) - 1.96 / sqrt(pmax(D, 1)))
+      haut <- exp(log(mx) + 1.96 / sqrt(pmax(D, 1)))
+      
+      res <- rbind(
+        res,
+        data.frame(
+          age = age,
+          annee = annee,
+          D = D,
+          E = E,
+          mx = mx,
+          bas = bas,
+          haut = haut
+        )
+      )
+    }
+  }
+  
+  res
+}
+```
+
+Les données observées vont jusqu'à `r max(data_femme$years)`. Les intervalles de confiance de cette question sont donc tracés sur la partie observée de la cohorte.
+
+```{r}
+tab_femme <- estime_mortalite(data_femme, cohorte, ages_contrat)
+tab_homme <- estime_mortalite(data_homme, cohorte, ages_contrat)
+
+tab_femme$sexe <- "Femmes"
+tab_homme$sexe <- "Hommes"
+
+head(tab_femme)
+head(tab_homme)
+```
+
+```{r}
+ylim_mx <- range(c(tab_femme$bas, tab_femme$haut, tab_homme$bas, tab_homme$haut), na.rm = TRUE)
+
+plot(tab_femme$age, tab_femme$mx, type = "l", col = "red",
+     ylim = ylim_mx,
+     xlab = "Âge", ylab = "Taux de mortalité",
+     main = "Taux de mortalité estimés par MLE")
+lines(tab_femme$age, tab_femme$bas, col = "red", lty = 2)
+lines(tab_femme$age, tab_femme$haut, col = "red", lty = 2)
+
+lines(tab_homme$age, tab_homme$mx, col = "blue")
+lines(tab_homme$age, tab_homme$bas, col = "blue", lty = 2)
+lines(tab_homme$age, tab_homme$haut, col = "blue", lty = 2)
+
+legend("topleft", c("Femmes", "Hommes"), col = c("red", "blue"), lty = 1)
+```
+
+**Commentaire :**
+
+On vérifie que l'estimation utilisée correspond à la procédure du cours :
+
+\[
+\widehat{\mu}_{x,t} = \frac{D_{x,t}}{E_{x,t}}.
+\]
+
+Les taux masculins sont généralement au-dessus des taux féminins. Cela traduit une mortalité masculine plus élevée aux âges considérés. Les intervalles de confiance mesurent l'incertitude statistique liée au nombre de décès observés et aux expositions.
+
+# 3. Log-taux historiques avec `extractCohort`
+
+On utilise maintenant la fonction `extractCohort`, comme demandé dans le sujet.
+
+```{r}
+taux_femme_hist <- data_femme$Dxt / data_femme$Ext
+taux_homme_hist <- data_homme$Dxt / data_homme$Ext
+
+coh_femme_hist <- extractCohort(taux_femme_hist, cohort = cohorte)
+coh_homme_hist <- extractCohort(taux_homme_hist, cohort = cohorte)
+
+ages_hist_femme <- as.numeric(names(coh_femme_hist))
+ages_hist_homme <- as.numeric(names(coh_homme_hist))
+```
+
+Le graphique suivant réunit les log-taux historiques extraits par cohorte et les log-taux estimés par maximum de vraisemblance sur la période du contrat.
+
+```{r}
+ylim_comp <- range(
+  log(tab_femme$mx),
+  log(tab_homme$mx),
+  log(coh_femme_hist),
+  log(coh_homme_hist),
+  na.rm = TRUE
+)
+
+plot(ages_hist_femme, log(coh_femme_hist), type = "l",
+     col = "#e83e8c", lwd = 2,
+     ylim = ylim_comp,
+     xlab = "Âge", ylab = "Log-taux de mortalité",
+     main = "Log-taux de mortalité historiques vs estimés par MV")
+mtext("Cohorte née en 1955 -- Angleterre & Pays de Galles",
+      side = 3, line = 0.3, adj = 0)
+grid(col = "gray90")
+lines(ages_hist_femme, log(coh_femme_hist), col = "#e83e8c", lwd = 2)
+lines(ages_hist_homme, log(coh_homme_hist), col = "#2c7fb8", lwd = 2)
+lines(tab_femme$age, log(tab_femme$mx), col = "#d7301f", lwd = 2, lty = 2)
+lines(tab_homme$age, log(tab_homme$mx), col = "#08519c", lwd = 2, lty = 2)
+legend("bottomright",
+       c("Femme (estimé MV)", "Femme (historique)",
+         "Homme (estimé MV)", "Homme (historique)"),
+       col = c("#d7301f", "#e83e8c", "#08519c", "#2c7fb8"),
+       lty = c(2, 1, 2, 1),
+       lwd = 2,
+       bty = "n",
+       cex = 0.8)
+```
+
+**Commentaire :**
+
+La fonction `extractCohort` réalise une lecture longitudinale : elle suit une même génération au cours du temps. Cette lecture est adaptée à une rente, car le contrat concerne des assurés nés la même année.
+
+Sur les années observées, les log-taux historiques et les log-taux estimés par maximum de vraisemblance coïncident, car l'estimateur utilisé est \(D_{x,t}/E_{x,t}\). Le graphique confirme donc la cohérence entre l'extraction de cohorte et l'estimation directe.
+
+# 4. Projection centrale sur 25 ans avec `forecast`
+
+On ajuste un modèle de Lee-Carter [@lee_carter_1992] avec `StMoMo` [@stmomo].
+
+```{r}
+modele_lc <- lc(link = "log")
+
+ages_fit <- 50:100
+years_fit <- 1960:max(data_femme$years)
+
+fit_femme <- fit(modele_lc, data = data_femme, ages.fit = ages_fit, years.fit = years_fit)
+fit_homme <- fit(modele_lc, data = data_homme, ages.fit = ages_fit, years.fit = years_fit)
+fit_total <- fit(modele_lc, data = data_total, ages.fit = ages_fit, years.fit = years_fit)
+```
+
+```{r}
+prev_femme_25 <- forecast(fit_femme, h = 25)
+prev_homme_25 <- forecast(fit_homme, h = 25)
+prev_total_25 <- forecast(fit_total, h = 25)
+```
+
+Projection centrale de l'indice temporel \(k_t\) pour les femmes et les hommes :
+
+```{r}
+plot_kt_projection <- function(prev, titre, couleur) {
+  fit <- prev$model
+  annees_hist <- fit$years
+  annees_prev <- prev$kt.f$years
+  kt_hist <- as.numeric(fit$kt[1, ])
+  kt_prev <- prev$kt.f
+  
+  moyenne <- as.numeric(kt_prev$mean[1, ])
+  niveaux <- kt_prev$level
+  niveau_large <- which.max(niveaux)
+  niveau_central <- which.min(niveaux)
+  
+  bas_large <- as.numeric(kt_prev$lower[1, , niveau_large])
+  haut_large <- as.numeric(kt_prev$upper[1, , niveau_large])
+  bas_central <- as.numeric(kt_prev$lower[1, , niveau_central])
+  haut_central <- as.numeric(kt_prev$upper[1, , niveau_central])
+  
+  limites_y <- range(
+    kt_hist,
+    moyenne,
+    bas_large,
+    haut_large,
+    na.rm = TRUE
+  )
+  
+  plot(annees_hist, kt_hist, type = "l",
+       xlim = c(2000, tail(annees_prev, 1)),
+       ylim = limites_y,
+       xlab = "Année", ylab = "Indice k_t",
+       main = titre,
+       lwd = 2.2,
+       col = couleur,
+       bty = "l",
+       las = 1)
+  grid(col = "gray92")
+  
+  polygon(c(annees_prev, rev(annees_prev)),
+          c(bas_large, rev(haut_large)),
+          col = "gray85", border = NA)
+  polygon(c(annees_prev, rev(annees_prev)),
+          c(bas_central, rev(haut_central)),
+          col = "gray65", border = NA)
+  
+  lines(annees_hist, kt_hist, lwd = 2.2, col = couleur)
+  lines(c(annees_prev[1] - 1, annees_prev),
+        c(tail(kt_hist, 1), moyenne),
+        lwd = 2.4, col = "black")
+  abline(v = annees_prev[1] - 1, lty = 3, col = "gray45")
+  
+  legend("bottomleft",
+         c("Historique", "Projection centrale", "Intervalle de projection"),
+         col = c(couleur, "black", "gray65"),
+         lty = c(1, 1, NA),
+         lwd = c(2.2, 2.4, NA),
+         pch = c(NA, NA, 15),
+         pt.cex = 1.5,
+         bty = "n",
+         cex = 0.8)
+}
+
+par(mfrow = c(1, 2), mar = c(4.6, 4.7, 3.2, 1.3))
+plot_kt_projection(prev_femme_25, "Femmes", "#e83e8c")
+plot_kt_projection(prev_homme_25, "Hommes", "#2c7fb8")
+par(mfrow = c(1, 1))
+```
+
+**Commentaire :**
+
+Dans le modèle de Lee-Carter, les composantes s'interprètent ainsi :
+
+- \(a_x\) représente le profil moyen de mortalité selon l'âge ;
+- \(b_x\) mesure la sensibilité de chaque âge à l'évolution temporelle ;
+- \(k_t\) représente le niveau global de mortalité au cours du temps.
+
+La projection centrale correspond à la moyenne prévue par `forecast`. Ce n'est ni une borne haute ni une borne basse : c'est la trajectoire centrale de \(k_t\), à partir de laquelle on déduit les taux futurs. Lorsque \(k_t\) diminue, cela traduit une amélioration attendue de la mortalité si la tendance passée se prolonge.
+
+# 5. Log-taux historiques depuis 2005
+
+```{r}
+age_2005 <- 2005 - cohorte
+ages_depuis_2005 <- age_2005:max(data_femme$ages)
+
+log_femme_2005 <- coh_femme_hist[as.character(ages_depuis_2005)]
+log_homme_2005 <- coh_homme_hist[as.character(ages_depuis_2005)]
+
+annees_depuis_2005 <- cohorte + ages_depuis_2005
+
+ok_2005 <- !is.na(log_femme_2005) & !is.na(log_homme_2005)
+```
+
+```{r}
+plot(annees_depuis_2005[ok_2005], log(log_femme_2005[ok_2005]),
+     type = "l", col = "red",
+     xlab = "Année", ylab = "Log taux de mortalité",
+     main = "Log-taux historiques depuis 2005")
+lines(annees_depuis_2005[ok_2005], log(log_homme_2005[ok_2005]), col = "blue")
+legend("topleft", c("Femmes", "Hommes"), col = c("red", "blue"), lty = 1)
+```
+
+**Commentaire :**
+
+À partir de 2005, la cohorte née en 1955 a 50 ans. On observe donc sa trajectoire avant l'entrée dans le contrat en 2015. Les log-taux augmentent avec l'âge, ce qui correspond au fait que la mortalité croît aux âges adultes et élevés. Les hommes conservent en général des log-taux supérieurs à ceux des femmes.
+
+# 6. Valeur actuelle probable du contrat selon le genre
+
+Pour une rente temporaire à termes anticipés :
+
+\[
+VAP = \sum_{k=0}^{n-1} v^k\,{}_kp_x.
+\]
+
+```{r}
+rente_temporaire <- function(qx, v) {
+  n <- length(qx)
+  survie <- c(1, cumprod(1 - qx[-n]))
+  sum(v^(0:(n - 1)) * survie)
+}
+```
+
+On prépare une matrice de taux contenant les taux ajustés observés et les taux projetés.
+
+```{r}
+matrice_complete <- function(fit, prev) {
+  cbind(fitted(fit, type = "rates"), prev$rates)
+}
+```
+
+Le contrat va jusqu'en 2045. Comme les données observées s'arrêtent en `r max(data_femme$years)`, on projette jusqu'en 2045.
+
+```{r}
+h_prix <- fin - max(data_femme$years)
+
+prev_femme_prix <- forecast(fit_femme, h = h_prix)
+prev_homme_prix <- forecast(fit_homme, h = h_prix)
+prev_total_prix <- forecast(fit_total, h = h_prix)
+
+mat_femme <- matrice_complete(fit_femme, prev_femme_prix)
+mat_homme <- matrice_complete(fit_homme, prev_homme_prix)
+mat_total <- matrice_complete(fit_total, prev_total_prix)
+```
+
+On transforme les taux centraux \(\mu_x\) en probabilités annuelles \(q_x\) avec l'approximation :
+
+\[
+q_x = 1 - \exp(-\mu_x).
+\]
+
+```{r}
+qx_contrat <- function(mat, cohorte, ages) {
+  qx <- rep(NA, length(ages))
+  
+  for (j in 1:length(ages)) {
+    age <- ages[j]
+    annee <- cohorte + age
+    mx <- mat[as.character(age), as.character(annee)]
+    qx[j] <- 1 - exp(-mx)
+  }
+  
+  qx
+}
+```
+
+```{r}
+qx_femme <- qx_contrat(mat_femme, cohorte, ages_contrat)
+qx_homme <- qx_contrat(mat_homme, cohorte, ages_contrat)
+
+vap_femme <- montant_rente * rente_temporaire(qx_femme, v)
+vap_homme <- montant_rente * rente_temporaire(qx_homme, v)
+
+resultat_genre <- data.frame(
+  sexe = c("Femmes", "Hommes"),
+  VAP = c(vap_femme, vap_homme)
+)
+
+resultat_genre
+```
+
+**Commentaire :**
+
+La valeur actuelle probable est déterminée par équivalence actuarielle entre les paiements futurs de rente et leur probabilité de versement. On observe que la VAP féminine est plus élevée. Cela s'explique par une mortalité plus faible des femmes : l'assureur s'attend donc à verser la rente plus longtemps en moyenne.
+
+# 7. Approfondissement 1 -- Sensibilité de la VAP au taux d'actualisation
+
+## 7.1 Motivation et cadre théorique
+
+La valeur actuelle probable dépend de deux sources principales : la survie future et l'actualisation financière. À mortalité donnée, une hausse du taux d'actualisation diminue la valeur des paiements futurs, surtout ceux qui arrivent tard dans le contrat.
+
+Pour une rente temporaire à termes anticipés de montant \(R\), on utilise :
+
+\[
+VAP(i) = R \sum_{k=0}^{n-1} \frac{{}_kp_x}{(1+i)^k}.
+\]
+
+Le taux de référence du rapport est \(i = 2\%\). On compare donc plusieurs taux autour de ce niveau.
+
+```{r}
+qx_total <- qx_contrat(mat_total, cohorte, ages_contrat)
+
+vap_total <- montant_rente * rente_temporaire(qx_total, v)
+vap_unisexe_portefeuille <- 0.60 * vap_femme + 0.40 * vap_homme
+
+resultats_reference <- data.frame(
+  methode = c(
+    "Femmes",
+    "Hommes",
+    "Unisexe série Total HMD",
+    "Unisexe portefeuille 60% femmes / 40% hommes"
+  ),
+  VAP = c(
+    vap_femme,
+    vap_homme,
+    vap_total,
+    vap_unisexe_portefeuille
+  )
+)
+
+resultats_reference
+```
+
+## 7.2 Calcul des VAP pour chaque taux
+
+```{r}
+taux_actualisation <- c(0.00, 0.01, 0.02, 0.03, 0.04, 0.05)
+
+vap_pour_taux <- function(qx, taux, montant = 1) {
+  montant * rente_temporaire(qx, 1 / (1 + taux))
+}
+
+table_sensibilite <- data.frame()
+
+for (taux in taux_actualisation) {
+  vap_f <- vap_pour_taux(qx_femme, taux, montant_rente)
+  vap_h <- vap_pour_taux(qx_homme, taux, montant_rente)
+  vap_t <- vap_pour_taux(qx_total, taux, montant_rente)
+  vap_p <- 0.60 * vap_f + 0.40 * vap_h
+  
+  table_sensibilite <- rbind(
+    table_sensibilite,
+    data.frame(
+      taux = taux,
+      Femmes = vap_f,
+      Hommes = vap_h,
+      Total_HMD = vap_t,
+      Portefeuille_60_40 = vap_p
+    )
+  )
+}
+
+table_sensibilite
+```
+
+## 7.3 Variation relative par rapport au taux de référence
+
+```{r}
+ligne_reference <- table_sensibilite[table_sensibilite$taux == i, ]
+
+variation_sensibilite <- table_sensibilite
+variation_sensibilite[, -1] <- 100 * sweep(
+  table_sensibilite[, -1],
+  2,
+  as.numeric(ligne_reference[, -1]),
+  FUN = "/"
+) - 100
+
+variation_sensibilite
+```
+
+## 7.4 Graphique de sensibilité
+
+```{r}
+ylim_sens <- range(table_sensibilite[, -1], na.rm = TRUE)
+
+plot(table_sensibilite$taux * 100, table_sensibilite$Femmes,
+     type = "l", lwd = 2, col = "#d7301f",
+     ylim = ylim_sens,
+     xlab = "Taux d'actualisation (%)",
+     ylab = "VAP",
+     main = "Sensibilité de la VAP au taux d'actualisation")
+grid(col = "gray90")
+lines(table_sensibilite$taux * 100, table_sensibilite$Hommes,
+      lwd = 2, col = "#08519c")
+lines(table_sensibilite$taux * 100, table_sensibilite$Total_HMD,
+      lwd = 2, col = "#31a354")
+lines(table_sensibilite$taux * 100, table_sensibilite$Portefeuille_60_40,
+      lwd = 2, col = "#756bb1")
+abline(v = i * 100, lty = 3, col = "gray40")
+legend("topright",
+       c("Femmes", "Hommes", "Total HMD", "Portefeuille 60/40"),
+       col = c("#d7301f", "#08519c", "#31a354", "#756bb1"),
+       lty = 1, lwd = 2, bty = "n", cex = 0.8)
+```
+
+**Commentaire :**
+
+La VAP décroît quand le taux d'actualisation augmente. L'effet est mécanique : les paiements éloignés reçoivent un poids plus faible. La sensibilité est plus forte pour les groupes à plus longue durée de paiement attendue, donc en général pour les femmes. Pour un produit de rente, le risque financier de taux ne peut donc pas être séparé du risque de longévité.
+
+# 8. Approfondissement 2 -- Comparaison de modèles de mortalité StMoMo
+
+## 8.1 Motivation et présentation des modèles
+
+Le modèle de Lee-Carter est une référence, mais il n'est pas le seul modèle disponible dans `StMoMo`. Pour tester la robustesse des conclusions, on compare trois modèles :
+
+- **Lee-Carter (LC)** : modèle simple avec un seul facteur temporel \(k_t\), adapté à une première projection globale.
+- **Age-Period-Cohort (APC)** : ajoute un effet de cohorte, utile lorsque certaines générations ont une mortalité durablement différente [@renshaw_haberman_2006].
+- **Cairns-Blake-Dowd (CBD)** : modèle orienté vers les âges adultes et élevés, souvent utilisé pour les risques de longévité et les portefeuilles de rentes [@cairns_blake_dowd_2006].
+
+Le benchmark utilise la série `total` afin de comparer les modèles sur une même base. On ajuste chaque modèle sur 1960-2015, puis on teste sa projection sur 2016-2022, période observée dans HMD. Le critère principal retenu est la RMSE des log-taux projetés.
+
+```{r}
+ages_fit_benchmark <- 60:90
+years_train <- 1960:2015
+years_test <- 2016:max(data_total$years)
+
+creer_modele <- function(nom, fun, link = "log") {
+  tryCatch(
+    fun(link = link),
+    error = function(e) {
+      warning(paste("Modèle non disponible :", nom, "-", e$message))
+      NULL
+    }
+  )
+}
+
+modeles_stmomo <- list(
+  "Lee-Carter" = modele_lc,
+  "APC" = creer_modele("APC", apc, "log"),
+  "CBD" = creer_modele("CBD", cbd, "log")
+)
+
+ajuster_stmomo <- function(modele, data, ages, years, nom) {
+  if (is.null(modele)) {
+    return(NULL)
+  }
+  
+  tryCatch(
+    fit(modele, data = data, ages.fit = ages, years.fit = years),
+    error = function(e) {
+      warning(paste("Ajustement impossible pour", nom, ":", e$message))
+      NULL
+    }
+  )
+}
+
+prevoir_stmomo <- function(fit_modele, h, nom) {
+  if (is.null(fit_modele)) {
+    return(NULL)
+  }
+  
+  tryCatch(
+    forecast(fit_modele, h = h),
+    error = function(e) {
+      warning(paste("Projection impossible pour", nom, ":", e$message))
+      NULL
+    }
+  )
+}
+
+compter_parametres <- function(fit_modele) {
+  compter <- function(x) {
+    if (is.null(x)) return(0)
+    if (is.list(x)) return(sum(vapply(x, compter, numeric(1))))
+    sum(is.finite(as.numeric(x)), na.rm = TRUE)
+  }
+  
+  compter(fit_modele$ax) +
+    compter(fit_modele$bx) +
+    compter(fit_modele$kt) +
+    compter(fit_modele$b0x) +
+    compter(fit_modele$gc)
+}
+
+extraire_loglik <- function(fit_modele) {
+  if (is.null(fit_modele$loglik)) {
+    return(NA_real_)
+  }
+  as.numeric(fit_modele$loglik[1])
+}
+
+evaluer_modele <- function(nom, modele) {
+  fit_train <- ajuster_stmomo(modele, data_total, ages_fit_benchmark, years_train, nom)
+  prev_test <- prevoir_stmomo(fit_train, length(years_test), nom)
+  fit_full <- ajuster_stmomo(
+    modele,
+    data_total,
+    ages_fit_benchmark,
+    c(years_train, years_test),
+    nom
+  )
+  
+  if (is.null(fit_train) || is.null(prev_test) || is.null(fit_full)) {
+    return(data.frame(
+      modele = nom,
+      RMSE_log = NA_real_,
+      MAE_log = NA_real_,
+      logLik = NA_real_,
+      AIC_indicatif = NA_real_,
+      BIC_indicatif = NA_real_,
+      parametres = NA_real_
+    ))
+  }
+  
+  pred <- prev_test$rates[as.character(ages_fit_benchmark), as.character(years_test)]
+  obs <- (data_total$Dxt / data_total$Ext)[as.character(ages_fit_benchmark), as.character(years_test)]
+  ok <- is.finite(obs) & is.finite(pred) & obs > 0 & pred > 0
+  
+  rmse <- sqrt(mean((log(obs[ok]) - log(pred[ok]))^2))
+  mae <- mean(abs(log(obs[ok]) - log(pred[ok])))
+  
+  loglik <- extraire_loglik(fit_full)
+  parametres <- compter_parametres(fit_full)
+  n_obs <- sum(ok)
+  
+  data.frame(
+    modele = nom,
+    RMSE_log = rmse,
+    MAE_log = mae,
+    logLik = loglik,
+    AIC_indicatif = ifelse(is.na(loglik), NA, -2 * loglik + 2 * parametres),
+    BIC_indicatif = ifelse(is.na(loglik), NA, -2 * loglik + log(n_obs) * parametres),
+    parametres = parametres
+  )
+}
+
+table_comparaison_modeles <- do.call(
+  rbind,
+  lapply(names(modeles_stmomo), function(nom) {
+    evaluer_modele(nom, modeles_stmomo[[nom]])
+  })
+)
+
+table_comparaison_modeles
+```
+
+```{r}
+table_modeles_valides <- table_comparaison_modeles[
+  is.finite(table_comparaison_modeles$RMSE_log),
+]
+
+if (nrow(table_modeles_valides) > 0) {
+  meilleur_modele <- table_modeles_valides[
+    which.min(table_modeles_valides$RMSE_log),
+  ]
+  meilleur_modele_nom <- meilleur_modele$modele
+} else {
+  meilleur_modele_nom <- "non déterminé"
+}
+
+meilleur_modele_nom
+```
+
+Selon le benchmark hors échantillon, le meilleur modèle est **`r meilleur_modele_nom`**, car il donne la plus faible erreur de projection sur 2016-2022 parmi les modèles ajustés.
+
+## 8.2 Ajustement du modèle APC
+
+```{r}
+fit_total_apc <- ajuster_stmomo(
+  modeles_stmomo[["APC"]],
+  data_total,
+  ages_fit_benchmark,
+  1960:max(data_total$years),
+  "APC"
+)
+
+if (!is.null(fit_total_apc)) {
+  plot(fit_total_apc)
+}
+```
+
+**Commentaire :**
+
+Le modèle APC sépare trois effets : l'âge, la période et la cohorte. Il devient intéressant lorsque la génération de naissance apporte une information supplémentaire. Dans notre sujet, la cohorte 1955 est centrale ; l'APC est donc pertinent pour vérifier si un effet générationnel modifie la projection de mortalité et la VAP.
+
+## 8.3 Ajustement du modèle CBD
+
+```{r}
+fit_total_cbd <- ajuster_stmomo(
+  modeles_stmomo[["CBD"]],
+  data_total,
+  ages_fit_benchmark,
+  1960:max(data_total$years),
+  "CBD"
+)
+
+if (!is.null(fit_total_cbd)) {
+  plot(fit_total_cbd)
+}
+```
+
+**Commentaire :**
+
+Le modèle CBD est adapté aux âges adultes et élevés, ce qui correspond au périmètre du contrat : les assurés passent de 60 à 90 ans. Il est moins général que Lee-Carter, mais il peut être plus ciblé pour un portefeuille de rentes où la longévité aux âges élevés est le risque principal.
+
+## 8.4 Tableau comparatif des trois modèles
+
+```{r}
+vap_modele_total <- function(fit_modele, nom) {
+  prev <- prevoir_stmomo(fit_modele, h_prix, nom)
+  
+  if (is.null(fit_modele) || is.null(prev)) {
+    return(NA_real_)
+  }
+  
+  mat <- matrice_complete(fit_modele, prev)
+  qx <- qx_contrat(mat, cohorte, ages_contrat)
+  montant_rente * rente_temporaire(qx, v)
+}
+
+fits_total_modeles <- list(
+  "Lee-Carter" = fit_total,
+  "APC" = fit_total_apc,
+  "CBD" = fit_total_cbd
+)
+
+vap_par_modele <- data.frame(
+  modele = names(fits_total_modeles),
+  VAP_total_HMD = sapply(names(fits_total_modeles), function(nom) {
+    vap_modele_total(fits_total_modeles[[nom]], nom)
+  })
+)
+
+tableau_benchmark <- merge(
+  table_comparaison_modeles,
+  vap_par_modele,
+  by = "modele",
+  all.x = TRUE
+)
+
+tableau_benchmark
+```
+
+**Commentaire de choix :**
+
+- Choisir **Lee-Carter** pour une analyse pédagogique, lisible et stable, ou lorsque l'on veut une référence simple à expliquer.
+- Choisir **APC** lorsque l'effet de génération est important, par exemple si certaines cohortes ont une mortalité structurellement différente.
+- Choisir **CBD** pour un portefeuille centré sur les âges élevés, notamment les rentes et le risque de longévité.
+- Choisir le modèle ayant la meilleure performance de validation lorsque l'objectif principal est la qualité prédictive. Ici, ce choix est donné par la RMSE hors échantillon.
+
+## 8.5 Graphique comparatif
+
+```{r}
+if (nrow(table_modeles_valides) > 0) {
+  barplot(table_modeles_valides$RMSE_log,
+          names.arg = table_modeles_valides$modele,
+          col = c("#4c78a8", "#f58518", "#54a24b")[seq_len(nrow(table_modeles_valides))],
+          ylab = "RMSE des log-taux",
+          main = "Erreur de projection 2016-2022")
+  grid(nx = NA, ny = NULL, col = "gray90")
+}
+```
+
+## 8.6 Visualisation des probabilités projetées
+
+```{r}
+couleurs_modeles <- c("Lee-Carter" = "#4c78a8", "APC" = "#f58518", "CBD" = "#54a24b")
+qx_modeles <- list()
+
+for (nom in names(fits_total_modeles)) {
+  prev <- prevoir_stmomo(fits_total_modeles[[nom]], h_prix, nom)
+  if (!is.null(prev) && !is.null(fits_total_modeles[[nom]])) {
+    mat <- matrice_complete(fits_total_modeles[[nom]], prev)
+    qx_modeles[[nom]] <- qx_contrat(mat, cohorte, ages_contrat)
+  }
+}
+
+if (length(qx_modeles) > 0) {
+  ylim_qx <- range(unlist(qx_modeles), na.rm = TRUE)
+  premier <- names(qx_modeles)[1]
+  
+  plot(ages_contrat, qx_modeles[[premier]],
+       type = "l", lwd = 2,
+       col = couleurs_modeles[premier],
+       ylim = ylim_qx,
+       xlab = "Âge",
+       ylab = "Probabilité annuelle de décès qx",
+       main = "Probabilités projetées selon le modèle")
+  grid(col = "gray90")
+  
+  if (length(qx_modeles) > 1) {
+    for (nom in names(qx_modeles)[-1]) {
+      lines(ages_contrat, qx_modeles[[nom]],
+            lwd = 2, col = couleurs_modeles[nom])
+    }
+  }
+  
+  legend("topleft",
+         names(qx_modeles),
+         col = couleurs_modeles[names(qx_modeles)],
+         lty = 1, lwd = 2, bty = "n")
+}
+```
+
+**Commentaire :**
+
+Les écarts entre courbes semblent parfois faibles en niveau annuel, mais ils peuvent produire une différence visible sur la VAP, car la rente additionne les paiements sur toute la durée du contrat. Le choix du modèle doit donc être justifié à la fois statistiquement et actuariellement.
+
+# 9. Approfondissement 3 -- Effet de la composition du portefeuille
+
+## 9.1 Motivation et formule
+
+Le portefeuille réel contient 60% de femmes et 40% d'hommes. Une prime unisexe fondée uniquement sur la série `total` HMD peut être éloignée de la structure propre de l'assureur si son portefeuille n'a pas la même composition que la population nationale.
+
+Pour une proportion \(p\) de femmes, la VAP moyenne du portefeuille est :
+
+\[
+VAP(p) = p \times VAP_F + (1-p) \times VAP_H.
+\]
+
+## 9.2 Calcul sur la grille de proportions
+
+```{r}
+proportions_femmes <- seq(0, 1, by = 0.05)
+
+table_composition <- data.frame(
+  proportion_femmes = proportions_femmes,
+  proportion_hommes = 1 - proportions_femmes,
+  VAP_portefeuille = proportions_femmes * vap_femme +
+    (1 - proportions_femmes) * vap_homme,
+  ecart_vs_total_HMD = proportions_femmes * vap_femme +
+    (1 - proportions_femmes) * vap_homme -
+    vap_total
+)
+
+table_composition
+```
+
+## 9.3 Proportion équivalente à la série Total HMD
+
+```{r}
+proportion_equivalente_total <- (vap_total - vap_homme) / (vap_femme - vap_homme)
+
+data.frame(
+  proportion_femmes_equivalente = proportion_equivalente_total,
+  proportion_hommes_equivalente = 1 - proportion_equivalente_total
+)
+```
+
+Cette proportion est celle qui rend la moyenne pondérée femmes/hommes égale à la VAP obtenue avec la série `total` HMD.
+
+## 9.4 Graphique
+
+```{r}
+plot(table_composition$proportion_femmes * 100,
+     table_composition$VAP_portefeuille,
+     type = "l", lwd = 2, col = "#756bb1",
+     xlab = "Proportion de femmes dans le portefeuille (%)",
+     ylab = "VAP moyenne",
+     main = "Effet de la composition femmes / hommes")
+grid(col = "gray90")
+abline(h = vap_total, lty = 2, col = "#31a354", lwd = 2)
+abline(v = 60, lty = 3, col = "gray40")
+abline(v = proportion_equivalente_total * 100, lty = 2, col = "#31a354")
+legend("topleft",
+       c("VAP portefeuille", "VAP Total HMD", "Portefeuille 60/40", "Composition équivalente Total"),
+       col = c("#756bb1", "#31a354", "gray40", "#31a354"),
+       lty = c(1, 2, 3, 2),
+       lwd = c(2, 2, 1, 1),
+       bty = "n", cex = 0.8)
+```
+
+## 9.5 Analyse du transfert de risque selon la composition
+
+```{r}
+prime_unisexe_60_40 <- 0.60 * vap_femme + 0.40 * vap_homme
+
+transfert_60_40 <- data.frame(
+  groupe = c("Femmes", "Hommes"),
+  cout_actuariel = c(vap_femme, vap_homme),
+  prime_unisexe_portefeuille = c(prime_unisexe_60_40, prime_unisexe_60_40),
+  difference_prime_moins_cout = c(
+    prime_unisexe_60_40 - vap_femme,
+    prime_unisexe_60_40 - vap_homme
+  )
+)
+
+transfert_60_40
+```
+
+**Commentaire :**
+
+Quand la proportion de femmes augmente, la VAP moyenne augmente, car la longévité attendue du portefeuille augmente. Une prime unisexe crée donc un transfert interne : les assurés dont le coût actuariel individuel est plus faible paient plus que leur coût propre, tandis que les assurés dont le coût actuariel est plus élevé paient moins que leur coût propre. Dans ce portefeuille, la prime 60/40 est plus adaptée que la série `total` si l'objectif est de refléter exactement la composition des assurés.
+
+# 10. Conclusion et synthèse des risques
+
+Le projet montre que la VAP d'une rente dépend simultanément de la mortalité projetée, du taux d'actualisation, du montant de rente et de la composition du portefeuille. L'analyse de sensibilité confirme que le taux d'actualisation est un paramètre majeur : plus le taux augmente, plus la VAP diminue.
+
+La comparaison des modèles StMoMo montre qu'il ne faut pas utiliser Lee-Carter automatiquement. Lee-Carter reste une bonne référence simple, APC devient pertinent si l'effet de cohorte est significatif, et CBD est particulièrement naturel pour les âges élevés et les rentes. Le choix final doit être motivé par la performance hors échantillon, la stabilité des projections et l'interprétabilité actuarielle.
+
+Enfin, la composition femmes/hommes modifie directement la prime unisexe. Une tarification avec la série `total` HMD est simple, mais elle peut transférer du risque si le portefeuille réel est différent de la population globale. Pour ce portefeuille 60/40, la moyenne pondérée des VAP genrées représente mieux l'exposition réelle.
+
+# 11. Références
+
+::: {#refs}
+:::
