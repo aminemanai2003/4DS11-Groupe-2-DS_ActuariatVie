@@ -36,7 +36,7 @@ $$
 Pour une rente temporaire annuelle à termes anticipés, la valeur actuelle probable est :
 
 $$
-\operatorname{VAP}(i)=R\sum_{k=0}^{n-1}(1+i)^{-k}\,{}_kp_x.
+\mathrm{VAP}(i)=R\sum_{k=0}^{n-1}(1+i)^{-k}\,{}_{k}p_x.
 $$
 
 ## Méthode
